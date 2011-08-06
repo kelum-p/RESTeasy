@@ -67,7 +67,13 @@ hostname/specification/:spec_name/:resource_id/property
 '''
 
 urlpatterns = patterns('specifications.views',
+                       # GET resources
                        (r'^$', 'index'),
                        (r'^(?P<specification>\w+)/(?P<version>\w+)/resources$', 'resources'),
                        (r'^resource/(?P<resource_id>\w+)$', 'resource'),
+                       
+                       
+                       # POST resources
+                       (r'^specification$', 'specification'),
+                       (r'^resource$', 'resource'),
                       )
