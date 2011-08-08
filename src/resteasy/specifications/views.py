@@ -8,13 +8,36 @@ from resteasy.specifications.models import Specification
 from resteasy.specifications.models import Resource
 from resteasy.specifications.models import Property
 
+class InvalidRequest(Exception):
+    def __init__(self, request, status, message):
+        self.request = request
+        self.status = status
+        self.message = message
+    
+    def __str__(self):
+        return self.message
+    
+    def get_response(self):
+        properties = {
+                      'error' : {
+                                 'url' : self.request.path,
+                                 'method' : self.request.method,
+                                 'message' : self.message
+                                 }
+                     }
+        return self.status, simplejson.dumps(properties)
+
 # Views for Specifications
 def index(request):
-    status, response = _get_index_response(request)
-    return _reply(status, response)
+    try:
+        status = '200'
+        response = _get_index_response(request)
+    except InvalidRequest as invalid_request:
+        status, response = invalid_request.get_response()
+    finally:
+        return _reply(status, response)
 
 def _get_index_response(request):
-    status = '200'
     response_properties = []
     
     spec_models = Specification.objects.all()
@@ -26,11 +49,11 @@ def _get_index_response(request):
     
     if len(response_properties) == 0:
         error_message = "No specifications defined in the system."
-        status, response = _create_404_error_response(request, error_message)
+        raise InvalidRequest(request, '404', error_message)
     else:
         response = simplejson.dumps(response_properties)
         
-    return status, response
+    return response
 
 def _get_versions(spec_models):
     versions = {}
@@ -44,44 +67,37 @@ def _get_versions(spec_models):
 
 @csrf_exempt
 def specification(request):
-    if request.method == 'POST':
-        status, response = _create_specification(request)
-    else:
-        error_message = "Only POST is supported."
-        status, response = _create_400_error_response(request, error_message)
-        
-    return _reply(status, response)
+    try:
+        if request.method == 'POST':
+            status = '200'
+            response = _create_specification(request)
+        else:
+            error_message = "Only POST is supported."
+            raise InvalidRequest(request, '400', error_message)
+    except InvalidRequest as invalid_request:
+        status, response = invalid_request.get_response()
+    finally:    
+        return _reply(status, response)
 
 def _create_specification(request):
-    status = '200'
-    data_stream = StringIO(request.raw_post_data)
     try:
-        specification_data = simplejson.load(data_stream)
-        _parse_and_save_specification(request, specification_data)
-    except ValueError:
-        error_message = "Invalid JSON"
-        status, response = _create_400_error_response(request, error_message)    
-        
-    return status, response
+        specification_data = _get_post_data(request)
+        return _parse_and_save_specification(request, 
+                                             specification_data)
+    except InvalidRequest as invalid_request:
+        raise invalid_request
 
 def _parse_and_save_specification(request, specification_data):
-    if isinstance(specification_data, dict):
-        try:
-            name = specification_data['name']
-            version = specification_data['version']
+    try:
+        name = specification_data['name']
+        version = specification_data['version']
                 
-            _save_specification(name, version)
-            status, response = ('200', ':)')
-        except KeyError as exception:
-            error_message = "Missing required key: %s" % exception
-            status, response = _create_400_error_response(request, 
-                                                          error_message)
-    else:
-        error_message = "Invalid JSON. The root must be a JSON object "
-        status, response = _create_400_error_response(request, error_message)
+        _save_specification(name, version)
+        return ":)"
+    except KeyError as exception:
+        error_message = "Missing required key: %s" % exception
+        raise InvalidRequest(request, '400', error_message)
         
-    return status, response
-
 def _save_specification(name, version):
     spec = Specification(name=name, version=version)
     spec.generate_id()
@@ -90,101 +106,108 @@ def _save_specification(name, version):
 # Views for Resources    
 def resources(request, specification, version):
     try:
-        status, response = _get_resources_response(request, 
-                                                   specification, 
-                                                   version)
+        status = '200'
+        response = _get_resources_response(request, specification, version)
+    except InvalidRequest as invalid_request:
+        status, response = invalid_request.get_response()
+    finally:
+        return _reply(status, response)
+    
+def _get_resources_response(request, specification, version):
+    try:
+        spec = Specification.objects.get(name=specification, version=version)
     except Specification.DoesNotExist:
         error_message = ("Specification '" + specification + ":" + version 
                             + "' does not exist.")
-        status, response = _create_404_error_response(request, error_message)
-        
-    return _reply(status, response)
-    
-def _get_resources_response(request, specification, version):
-    status = '200'
-    spec = Specification.objects.get(name=specification, version=version)
-    resources = Resource.objects.filter(specification=spec)
-        
-    if len(resources) > 0:
-        response_properties = [resource.get_properties() 
-                               for resource in resources]
-        response = simplejson.dumps(response_properties)
+        raise InvalidRequest(request, '404', error_message)
     else:
-        error_message = ("No resources defined for the specification " 
-                         + specification + ":" + version)
-        status, response = _create_404_error_response(request, error_message)
-    
-    return status, response
-
-@csrf_exempt    
-def resource(request, resource_id=None):
-    if request.method == 'POST':
-        reply = HttpResponse("POST detected: " + request.raw_post_data)
-    elif request.method == 'GET':
-        if resource_id:
-            reply = _get_resource(request, resource_id)
+        resources = Resource.objects.filter(specification=spec)
+            
+        if len(resources) > 0:
+            response_properties = [resource.get_properties() 
+                                   for resource in resources]
+            return simplejson.dumps(response_properties)
         else:
-            error_message = "Must specify a resource id"
-            status, response = _create_400_error_response(request, 
-                                                          error_message)
-            reply = _reply(status, response)
-    else:
-        error_message = "Only POST and GET are supported"
-        status, response = _create_400_error_response(request, error_message)
-        reply = _reply(status, response)
+            error_message = ("No resources defined for the specification " 
+                             + specification + ":" + version)
+            raise InvalidRequest(request, '404', error_message)
         
-    return reply
-
+@csrf_exempt   
+def resource(request, resource_id=None):
+    try:
+        status = '200'
+        if request.method == 'POST':
+            response = _create_resource(request)
+        elif request.method == 'GET':
+            if resource_id:
+                response = _get_resource(request, resource_id)
+            else:
+                error_message = "Must specify a resource id"
+                raise InvalidRequest(request, '400', error_message)
+        else:
+            error_message = "Only POST and GET are supported"
+            raise InvalidRequest(request, '400', error_message)
+    except InvalidRequest as invalid_request:
+        status, response = invalid_request.get_response()
+    finally:
+        return _reply(status, response)
+        
 def _create_resource(request):
+    try:
+        resource_data = _get_post_data(request)
+        return _parse_and_save_resource(request, resource_data)
+    except InvalidRequest as invalid_request:
+        raise invalid_request
+        
+def _parse_and_save_resource(request, resource_data):
     pass
+
+def _save_resource(url, specification):
+    resource = Resource(url=url, specification=specification)
+    resource.generate_id()
+    resource.save()
 
 def _get_resource(request, resource_id):
     try:
-        status, response = _get_resource_response(request, resource_id)    
+        return _get_resource_response(request, resource_id)    
+    except InvalidRequest as invalid_request:
+        raise invalid_request
+    
+def _get_resource_response(request, resource_id):
+    try:    
+        resource = Resource.objects.get(id=resource_id)
     except Resource.DoesNotExist:
         error_message = ("Resource with id: '" + resource_id 
                          + "' does not exist.")
-        status, response = _create_404_error_response(request, error_message)
-    else:        
-        return _reply(status, response)
-    
-def _get_resource_response(request, resource_id):
-    status = '200'
-    resource = Resource.objects.get(id=resource_id)
-    property_models = Property.objects.filter(resource=resource)
+        raise InvalidRequest(request, '404', error_message)
+    else:    
+        property_models = Property.objects.filter(resource=resource)
         
-    if len(property_models) > 0:
-        response_properties = {}
-        for property_model in property_models:
-            id, properties = property_model.get_properties()
-            response_properties[id] = properties
-            
-        response = simplejson.dumps(response_properties)
+        if len(property_models) > 0:
+            response_properties = {}
+            for property_model in property_models:
+                id, properties = property_model.get_properties()
+                response_properties[id] = properties
+                
+            return simplejson.dumps(response_properties)
+        else:
+            error_message = ("No properties defined for the resource " 
+                             + resource.url + " with id: " + resource.id)
+            raise InvalidRequest(request, '404', error_message)
+                        
+def _get_post_data(request):
+    data_stream = StringIO(request.raw_post_data)
+    try:
+        data = simplejson.load(data_stream)
+    except ValueError:
+        error_message = "Invalid JSON post data to create a specification"
+        raise InvalidRequest(request, '400', error_message)
     else:
-        error_message = ("There are no properties defined for the resource " 
-                         + resource.url + " with id: " + resource.id)
-        status, response = _create_404_error_response(request, error_message)
-        
-    return status, response
-
-def _create_400_error_response(request, error_message):
-    response = _create_error_response(request, error_message)
-    return '400', response
-
-def _create_404_error_response(request, error_message):
-    response = _create_error_response(request, error_message)
-    return '404', response
-
-def _create_error_response(request, error_message):
-    error_response_properties = {
-                                 'error' : {
-                                            'url' : request.path,
-                                            'method' : request.method,
-                                            'message' : error_message
-                                           }
-                                }
-    
-    return simplejson.dumps(error_response_properties)
+        if isinstance(data, dict):
+            return data
+        else:
+            error_message = "Root of JSON must be an type object"
+            raise InvalidRequest(request, '400', error_message)
 
 def _reply(status, response):
     mime_type = 'application/json'
@@ -195,7 +218,7 @@ def _reply(status, response):
     elif status == '400':
         reply = HttpResponseBadRequest(response, mime_type)
     else:
-        raise Exception("Reply status not supported")
+        raise Exception("Reply status '%s' not supported" % status)
         
     return reply
     
