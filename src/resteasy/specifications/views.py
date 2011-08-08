@@ -94,8 +94,8 @@ def _parse_and_save_specification(request, specification_data):
                 
         _save_specification(name, version)
         return ":)"
-    except KeyError as exception:
-        error_message = "Missing required key: %s" % exception
+    except KeyError as key_error:
+        error_message = "Missing required key: %s" % key_error
         raise InvalidRequest(request, '400', error_message)
         
 def _save_specification(name, version):
@@ -160,7 +160,22 @@ def _create_resource(request):
         raise invalid_request
         
 def _parse_and_save_resource(request, resource_data):
-    pass
+    try:
+        specification = resource_data['specification']
+        version = resource_data['version']
+        url = resource_data['url']
+        
+        spec = Specification.objects.get(name=specification, version=version)
+        
+        _save_resource(url, spec)
+        return ":)"
+    except Specification.DoesNotExist:
+        error_message = ("Specified specification '%s (%s)' does not exist" 
+                        % (specification, version))
+        raise InvalidRequest(request, '400', error_message)
+    except KeyError as key_error:
+        error_message = "Missing required key: %s" % key_error
+        raise InvalidRequest(request, '400', error_message)
 
 def _save_resource(url, specification):
     resource = Resource(url=url, specification=specification)
