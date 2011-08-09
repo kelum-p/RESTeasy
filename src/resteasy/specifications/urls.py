@@ -60,9 +60,9 @@ hostname/specifications/resource/:resource_id
 POST:
 hostname/specifications/specification
     -> creates a new specification
-hostname/specification/:spec_name/resource
+hostname/specification/resource
     -> creates a new resource
-hostname/specification/:spec_name/:resource_id/property
+hostname/specification/property
     -> creates a new property
 '''
 
@@ -76,4 +76,5 @@ urlpatterns = patterns('specifications.views',
                        # POST resources
                        (r'^specification$', 'specification'),
                        (r'^resource$', 'resource'),
+                       (r'^property$', 'property')
                       )

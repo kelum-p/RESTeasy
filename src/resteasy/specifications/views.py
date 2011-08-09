@@ -92,17 +92,13 @@ def _parse_and_save_specification(request, specification_data):
         name = specification_data['name']
         version = specification_data['version']
                 
-        _save_specification(name, version)
+        spec = Specification(name=name, version=version)
+        _save_model(spec)
         return ":)"
     except KeyError as key_error:
         error_message = "Missing required key: %s" % key_error
         raise InvalidRequest(request, '400', error_message)
         
-def _save_specification(name, version):
-    spec = Specification(name=name, version=version)
-    spec.generate_id()
-    spec.save()
- 
 # Views for Resources    
 def resources(request, specification, version):
     try:
@@ -140,7 +136,7 @@ def resource(request, resource_id=None):
             response = _create_resource(request)
         elif request.method == 'GET':
             if resource_id:
-                response = _get_resource(request, resource_id)
+                response = _get_resource_response(request, resource_id)
             else:
                 error_message = "Must specify a resource id"
                 raise InvalidRequest(request, '400', error_message)
@@ -153,11 +149,8 @@ def resource(request, resource_id=None):
         return _reply(status, response)
         
 def _create_resource(request):
-    try:
-        resource_data = _get_post_data(request)
-        return _parse_and_save_resource(request, resource_data)
-    except InvalidRequest as invalid_request:
-        raise invalid_request
+    resource_data = _get_post_data(request)
+    return _parse_and_save_resource(request, resource_data)
         
 def _parse_and_save_resource(request, resource_data):
     try:
@@ -166,8 +159,8 @@ def _parse_and_save_resource(request, resource_data):
         url = resource_data['url']
         
         spec = Specification.objects.get(name=specification, version=version)
-        
-        _save_resource(url, spec)
+        resource = Resource(url=url, specification=spec)
+        _save_model(resource)
         return ":)"
     except Specification.DoesNotExist:
         error_message = ("Specified specification '%s (%s)' does not exist" 
@@ -176,17 +169,6 @@ def _parse_and_save_resource(request, resource_data):
     except KeyError as key_error:
         error_message = "Missing required key: %s" % key_error
         raise InvalidRequest(request, '400', error_message)
-
-def _save_resource(url, specification):
-    resource = Resource(url=url, specification=specification)
-    resource.generate_id()
-    resource.save()
-
-def _get_resource(request, resource_id):
-    try:
-        return _get_resource_response(request, resource_id)    
-    except InvalidRequest as invalid_request:
-        raise invalid_request
     
 def _get_resource_response(request, resource_id):
     try:    
@@ -209,7 +191,72 @@ def _get_resource_response(request, resource_id):
             error_message = ("No properties defined for the resource " 
                              + resource.url + " with id: " + resource.id)
             raise InvalidRequest(request, '404', error_message)
-                        
+                    
+@csrf_exempt
+def property(request):
+    try:
+        if request.method == 'POST':
+            status = '200'
+            response = _create_property(request)
+        else:
+            error_message = "Only POST is supported"
+            raise InvalidRequest(request, '400', error_message)
+    except InvalidRequest as invalid_request:
+        status, response = invalid_request.get_response()
+        
+    return _reply(status, response)
+
+def _create_property(request):
+    property_data = _get_post_data(request)
+    return _parse_and_save_property(request, property_data)
+
+def _parse_and_save_property(request, property_data):
+    try:
+        resource_id = property_data['resource_id']
+        resource = Resource.objects.get(id=resource_id)
+        
+        name = property_data['name']
+        type = property_data['type']
+        is_required = True
+        is_static = True
+        
+        parent = None
+        if property_data.has_key('parent_id'):
+            parent = _get_property(request, property_data['parent_id'])
+    except Resource.DoesNotExist:
+        error_message = "Resource with ID '%s' does not exist" % resource_id
+        raise InvalidRequest(request, '400', error_message)
+    except KeyError as key_error:
+        error_message = "Missing required key: %s" % key_error
+        raise InvalidRequest(request, '400', error_message)
+    else:
+        if property_data.has_key('required'):
+            is_required = property_data['required']
+        
+        if property_data.has_key('static'):
+            is_static = property_data['static']
+        
+        property = Property(name=name, 
+                            type=type, 
+                            is_required=is_required,
+                            is_static=is_static,
+                            resource=resource,
+                            parent=parent
+                           )
+        _save_model(property)
+        return ":)"
+
+def _get_property(request, property_id):
+    try:
+        return Property.objects.get(id=property_id)
+    except Property.DoesNotExist:
+        error_message = "Property with id '%s' does not exist" % property_id
+        raise InvalidRequest(request, '400', error_message)
+
+def _save_model(model):
+    model.generate_id()
+    model.save()
+
 def _get_post_data(request):
     data_stream = StringIO(request.raw_post_data)
     try:
