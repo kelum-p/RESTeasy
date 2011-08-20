@@ -94,7 +94,7 @@ def _parse_and_save_specification(request, specification_data):
                 
         spec = Specification(name=name, version=version)
         _save_model(spec)
-        return ":)"
+        return simplejson.dumps(spec.get_properties())
     except KeyError as key_error:
         error_message = "Missing required key: %s" % key_error
         raise InvalidRequest(request, '400', error_message)

@@ -12,7 +12,8 @@ class Specification(models.Model):
     def get_properties(self):
         return {
                 'id' : self.id,
-                'name' : self.name
+                'name' : self.name,
+                'version': self.version
                }
     
     def __unicode__(self):
@@ -29,9 +30,12 @@ class Resource(models.Model):
     def get_properties(self):
         return {
                 'id' : self.id,
-                'url' : self.url
+                'url' : self.url,
+                'specification': "%s (%s)" % 
+                                (self.specification.name, 
+                                 self.specification.version)
                }
-    
+     
     def __unicode__(self):
         return self.url
             
