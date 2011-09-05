@@ -31,9 +31,8 @@ class Resource(models.Model):
         return {
                 'id' : self.id,
                 'url' : self.url,
-                'specification': "%s (%s)" % 
-                                (self.specification.name, 
-                                 self.specification.version)
+                'specName': self.specification.name, 
+                'specVersion': self.specification.version
                }
      
     def __unicode__(self):

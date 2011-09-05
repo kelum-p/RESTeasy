@@ -82,7 +82,7 @@ def specification(request):
 def _create_specification(request):
     try:
         specification_data = _get_post_data(request)
-        return _parse_and_save_specification(request, 
+        return _parse_and_save_specification(request,
                                              specification_data)
     except InvalidRequest as invalid_request:
         raise invalid_request
@@ -162,14 +162,14 @@ def _create_resource(request):
         
 def _parse_and_save_resource(request, resource_data):
     try:
-        specification = resource_data['specification']
-        version = resource_data['version']
+        specification = resource_data['specName']
+        version = resource_data['specVersion']
         url = resource_data['url']
         
         spec = Specification.objects.get(name=specification, version=version)
         resource = Resource(url=url, specification=spec)
         _save_model(resource)
-        return ":)"
+        return simplejson.dumps(resource.get_properties())
     except Specification.DoesNotExist:
         error_message = ("Specified specification '%s (%s)' does not exist" 
                         % (specification, version))
@@ -186,20 +186,19 @@ def _get_resource_response(request, resource_id):
                          + "' does not exist.")
         raise InvalidRequest(request, '404', error_message)
     else:    
-        property_models = Property.objects.filter(resource=resource)
+        resource_properties = resource.get_properties()
         
+        property_models = Property.objects.filter(resource=resource)
         if len(property_models) > 0:
-            response_properties = {}
+            property_model_properties = {}
             for property_model in property_models:
                 id, properties = property_model.get_properties()
-                response_properties[id] = properties
-                
-            return simplejson.dumps(response_properties)
-        else:
-            error_message = ("No properties defined for the resource " 
-                             + resource.url + " with id: " + resource.id)
-            raise InvalidRequest(request, '404', error_message)
-                    
+                property_model_properties[id] = properties
+            
+            resource_properties['properties'] = property_model_properties
+        
+        return simplejson.dumps(resource_properties)
+        
 @csrf_exempt
 def property(request):
     try:
@@ -244,8 +243,8 @@ def _parse_and_save_property(request, property_data):
         if property_data.has_key('static'):
             is_static = property_data['static']
         
-        property = Property(name=name, 
-                            type=type, 
+        property = Property(name=name,
+                            type=type,
                             is_required=is_required,
                             is_static=is_static,
                             resource=resource,
