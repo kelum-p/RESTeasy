@@ -77,6 +77,7 @@ urlpatterns = patterns('specifications.views',
                        # GET resources
                        (r'^$', 'index'),
                        (r'^/(?P<specification>\w+)/(?P<version>\w+)/resources$', 'resources'),
+                       (r'^/resource/(?P<resource_id>\w+)$', 'resource'),
                        (r'^/(?P<resource_id>\w+)/properties$', 'properties'),
                        
                        

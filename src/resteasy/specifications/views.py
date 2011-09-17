@@ -137,11 +137,15 @@ def _get_resources_response(request, specification, version):
             raise InvalidRequest(request, '404', error_message)            
 
 @csrf_exempt   
-def resource(request):
+def resource(request, resource_id=None):
     try:
         status = '200'
         if request.method == 'POST':
             response = _create_resource(request)
+        elif request.method == 'GET':
+            resource = _get_resource(request, resource_id)
+            resource_properties = resource.get_properties()
+            response = simplejson.dumps(resource_properties)
         else:
             error_message = "Only POST and GET are supported"
             raise InvalidRequest(request, '400', error_message)
@@ -176,7 +180,7 @@ def properties(request, resource_id):
     try:
         status = '200'
         if resource_id:
-            response = _get_resource_properties(request, resource_id)
+            response = _get_properties(request, resource_id)
         else:
             error_message = "Must specify a resource id"
             raise InvalidRequest(request, '400', error_message)
@@ -185,27 +189,29 @@ def properties(request, resource_id):
     finally:
         return _reply(status, response)
 
-def _get_resource_properties(request, resource_id):
+def _get_properties(request, resource_id): 
+    resource = _get_resource(request, resource_id)          
+    property_models = Property.objects.filter(resource=resource)
+    if len(property_models) > 0:
+        property_model_properties = {}
+        for property_model in property_models:
+            id, properties = property_model.get_properties()
+            property_model_properties[id] = properties
+                
+        return simplejson.dumps(property_model_properties)
+    else:
+        error_message = ("Properties not found for resource with id %s" 
+                        % (resource_id))
+        raise InvalidRequest(request, '404', error_message)
+        
+def _get_resource(request, resource_id):
     try:    
-        resource = Resource.objects.get(id=resource_id)
+        return Resource.objects.get(id=resource_id)
     except Resource.DoesNotExist:
         error_message = ("Resource with id: '" + resource_id 
                          + "' does not exist.")
         raise InvalidRequest(request, '404', error_message)
-    else:            
-        property_models = Property.objects.filter(resource=resource)
-        if len(property_models) > 0:
-            property_model_properties = {}
-            for property_model in property_models:
-                id, properties = property_model.get_properties()
-                property_model_properties[id] = properties
-                
-            return simplejson.dumps(property_model_properties)
-        else:
-            error_message = ("Properties not found for resource with id %s" 
-                             % (resource_id))
-            raise InvalidRequest(request, '404', error_message)
-        
+    
 @csrf_exempt
 def property(request):
     try:
