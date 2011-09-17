@@ -32,7 +32,8 @@ class Resource(models.Model):
                 'id' : self.id,
                 'url' : self.url,
                 'specName': self.specification.name, 
-                'specVersion': self.specification.version
+                'specVersion': self.specification.version,
+                'propertyHref': '/specifications/%s/properties' % self.id
                }
      
     def __unicode__(self):

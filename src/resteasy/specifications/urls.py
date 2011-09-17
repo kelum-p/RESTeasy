@@ -30,15 +30,22 @@ hostname/specifications/:spec_name/:version/resources
             {
                 "url": "config/v1/first",
                 "id": "338a6cc36afc5ab36a18a7eed1d8c0cf"
+                "headers" :
+                    {
+                        key : value
+                        ...
+                    },
+                "propertyHref": "resource href to get properties"
             },
             {
                 "url": "config/v1/second",
                 "id": "90f71e690ccffc40f8f5cf139754252f"
+                ...
             },
             ...
         ]
 
-hostname/specifications/resource/:resource_id
+hostname/specifications/:resource_id/properties
     -> shows all the properties associated to a resource
         {
             "578a08534564542a9dd2f41b1d89fbaa": {
@@ -70,7 +77,7 @@ urlpatterns = patterns('specifications.views',
                        # GET resources
                        (r'^$', 'index'),
                        (r'^/(?P<specification>\w+)/(?P<version>\w+)/resources$', 'resources'),
-                       (r'^/resource/(?P<resource_id>\w+)$', 'resource'),
+                       (r'^/(?P<resource_id>\w+)/properties$', 'properties'),
                        
                        
                        # POST resources
