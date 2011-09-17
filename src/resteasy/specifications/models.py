@@ -63,6 +63,7 @@ class Element(models.Model):
         
     def get_properties(self):
         elements = {
+                      'id': self.id,
                       'name' : self.name,
                       'type' : self.type,
                       'required' : self.is_required,
