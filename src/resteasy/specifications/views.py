@@ -6,7 +6,7 @@ from django.utils import simplejson
 from django.views.decorators.csrf import csrf_exempt
 from resteasy.specifications.models import Specification
 from resteasy.specifications.models import Resource
-from resteasy.specifications.models import Property
+from resteasy.specifications.models import Element
 
 class InvalidRequest(Exception):
     def __init__(self, request, status, message):
@@ -18,14 +18,14 @@ class InvalidRequest(Exception):
         return self.message
     
     def get_response(self):
-        properties = {
+        response = {
                       'error' : {
                                  'url' : self.request.path,
                                  'method' : self.request.method,
                                  'message' : self.message
                                  }
                      }
-        return self.status, simplejson.dumps(properties)
+        return self.status, simplejson.dumps(response)
 
 # Views for Specifications
 def index(request):
@@ -176,11 +176,11 @@ def _parse_and_save_resource(request, resource_data):
         error_message = "Missing required key: %s" % key_error
         raise InvalidRequest(request, '400', error_message)
 
-def properties(request, resource_id):
+def elements(request, resource_id):
     try:
         status = '200'
         if resource_id:
-            response = _get_properties(request, resource_id)
+            response = _get_elements(request, resource_id)
         else:
             error_message = "Must specify a resource id"
             raise InvalidRequest(request, '400', error_message)
@@ -189,16 +189,16 @@ def properties(request, resource_id):
     finally:
         return _reply(status, response)
 
-def _get_properties(request, resource_id): 
+def _get_elements(request, resource_id): 
     resource = _get_resource(request, resource_id)          
-    property_models = Property.objects.filter(resource=resource)
-    if len(property_models) > 0:
-        property_model_properties = {}
-        for property_model in property_models:
-            id, properties = property_model.get_properties()
-            property_model_properties[id] = properties
+    element_models = Element.objects.filter(resource=resource)
+    if len(element_models) > 0:
+        element_model_properties = {}
+        for element_model in element_models:
+            id, elements = element_model.get_properties()
+            element_model_properties[id] = elements
                 
-        return simplejson.dumps(property_model_properties)
+        return simplejson.dumps(element_model_properties)
     else:
         error_message = ("Properties not found for resource with id %s" 
                         % (resource_id))
@@ -213,11 +213,11 @@ def _get_resource(request, resource_id):
         raise InvalidRequest(request, '404', error_message)
     
 @csrf_exempt
-def property(request):
+def element(request):
     try:
         if request.method == 'POST':
             status = '200'
-            response = _create_property(request)
+            response = _create_element(request)
         else:
             error_message = "Only POST is supported"
             raise InvalidRequest(request, '400', error_message)
@@ -226,23 +226,23 @@ def property(request):
         
     return _reply(status, response)
 
-def _create_property(request):
-    property_data = _get_post_data(request)
-    return _parse_and_save_property(request, property_data)
+def _create_element(request):
+    element_data = _get_post_data(request)
+    return _parse_and_save_element(request, element_data)
 
-def _parse_and_save_property(request, property_data):
+def _parse_and_save_element(request, element_data):
     try:
-        resource_id = property_data['resource_id']
+        resource_id = element_data['resource_id']
         resource = Resource.objects.get(id=resource_id)
         
-        name = property_data['name']
-        type = property_data['type']
+        name = element_data['name']
+        type = element_data['type']
         is_required = True
         is_static = True
         
         parent = None
-        if property_data.has_key('parent_id'):
-            parent = _get_property(request, property_data['parent_id'])
+        if element_data.has_key('parent_id'):
+            parent = _get_element(request, element_data['parent_id'])
     except Resource.DoesNotExist:
         error_message = "Resource with ID '%s' does not exist" % resource_id
         raise InvalidRequest(request, '400', error_message)
@@ -250,27 +250,28 @@ def _parse_and_save_property(request, property_data):
         error_message = "Missing required key: %s" % key_error
         raise InvalidRequest(request, '400', error_message)
     else:
-        if property_data.has_key('required'):
-            is_required = property_data['required']
+        if element_data.has_key('required'):
+            is_required = element_data['required']
         
-        if property_data.has_key('static'):
-            is_static = property_data['static']
+        if element_data.has_key('static'):
+            is_static = element_data['static']
         
-        property = Property(name=name,
+        element = Element(name=name,
                             type=type,
                             is_required=is_required,
                             is_static=is_static,
                             resource=resource,
                             parent=parent
                            )
-        _save_model(property)
-        return ":)"
+        _save_model(element)
+        element_properties = element.get_properties()
+        return simplejson.dumps(element_properties)
 
-def _get_property(request, property_id):
+def _get_element(request, element_id):
     try:
-        return Property.objects.get(id=property_id)
-    except Property.DoesNotExist:
-        error_message = "Property with id '%s' does not exist" % property_id
+        return Element.objects.get(id=element_id)
+    except Element.DoesNotExist:
+        error_message = "Element with id '%s' does not exist" % element_id
         raise InvalidRequest(request, '400', error_message)
 
 def _save_model(model):

@@ -35,7 +35,7 @@ hostname/specifications/:spec_name/:version/resources
                         key : value
                         ...
                     },
-                "propertyHref": "resource href to get properties"
+                "elementsHref": "resource href to get properties"
             },
             {
                 "url": "config/v1/second",
@@ -45,8 +45,8 @@ hostname/specifications/:spec_name/:version/resources
             ...
         ]
 
-hostname/specifications/:resource_id/properties
-    -> shows all the properties associated to a resource
+hostname/specifications/:resource_id/elements
+    -> shows all the elements associated to a resource
         {
             "578a08534564542a9dd2f41b1d89fbaa": {
                 "static": true,
@@ -69,8 +69,8 @@ hostname/specifications/specification
     -> creates a new specification
 hostname/specification/resource
     -> creates a new resource
-hostname/specification/property
-    -> creates a new property
+hostname/specification/elements
+    -> creates a new element
 '''
 
 urlpatterns = patterns('specifications.views',
@@ -78,11 +78,11 @@ urlpatterns = patterns('specifications.views',
                        (r'^$', 'index'),
                        (r'^/(?P<specification>\w+)/(?P<version>\w+)/resources$', 'resources'),
                        (r'^/resource/(?P<resource_id>\w+)$', 'resource'),
-                       (r'^/(?P<resource_id>\w+)/properties$', 'properties'),
+                       (r'^/(?P<resource_id>\w+)/elements$', 'elements'),
                        
                        
                        # POST resources
                        (r'^/specification$', 'specification'),
                        (r'^/resource$', 'resource'),
-                       (r'^/property$', 'property')
+                       (r'^/element$', 'element')
                       )

@@ -33,13 +33,13 @@ class Resource(models.Model):
                 'url' : self.url,
                 'specName': self.specification.name, 
                 'specVersion': self.specification.version,
-                'propertyHref': '/specifications/%s/properties' % self.id
+                'elementsHref': '/specifications/%s/elements' % self.id
                }
      
     def __unicode__(self):
         return self.url
             
-class Property(models.Model):
+class Element(models.Model):
     id = models.TextField(primary_key=True)
     name = models.TextField(null=True, blank=True)
     type = models.CharField(max_length=200)
@@ -62,7 +62,7 @@ class Property(models.Model):
         self.id = md5.new(md5_input).hexdigest()
         
     def get_properties(self):
-        properties = {
+        elements = {
                       'name' : self.name,
                       'type' : self.type,
                       'required' : self.is_required,
@@ -70,9 +70,9 @@ class Property(models.Model):
                      }
         
         if self.parent:
-            properties['parent'] = self.parent.id
+            elements['parent'] = self.parent.id
         
-        return self.id, properties
+        return self.id, elements
     
     def __unicode__(self):
         tokens = [
