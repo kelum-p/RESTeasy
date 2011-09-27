@@ -193,7 +193,7 @@ def _get_resource(request, resource_id):
     except Resource.DoesNotExist:
         error_message = ("Resource with id: '" + resource_id 
                          + "' does not exist.")
-        raise InvalidRequest(request, '404', error_message)
+        raise InvalidRequest(request, '400', error_message)
     
 @csrf_exempt
 def element(request):
@@ -282,8 +282,6 @@ def _reply(status, response):
     mime_type = 'application/json'
     if status == '200':
         reply = HttpResponse(response, mime_type)
-    elif status == '404':
-        reply = HttpResponseNotFound(response, mime_type)
     elif status == '400':
         reply = HttpResponseBadRequest(response, mime_type)
     else:
