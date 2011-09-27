@@ -1,4 +1,4 @@
-import md5
+from hashlib import md5
 from django.db import models
 
 class Specification(models.Model):
@@ -7,7 +7,9 @@ class Specification(models.Model):
     version = models.TextField()
     
     def generate_id(self):
-        self.id = md5.new(self.name+self.version).hexdigest()
+        md5_hash = md5()
+        md5_hash.update(self.name+self.version)
+        self.id = md5_hash.hexdigest()
     
     def get_properties(self):
         return {
@@ -25,7 +27,9 @@ class Resource(models.Model):
     specification = models.ForeignKey(Specification)
     
     def generate_id(self):
-        self.id = md5.new(self.url+self.specification.id).hexdigest()
+        md5_hash = md5()
+        md5_hash.update(self.url+self.specification.id)
+        self.id = md5_hash.hexdigest()
     
     def get_properties(self):
         return {
@@ -59,7 +63,9 @@ class Element(models.Model):
             tokens.append(self.parent.id)
             
         md5_input = "".join(token for token in tokens)
-        self.id = md5.new(md5_input).hexdigest()
+        md5_hash = md5()
+        md5_hash.update(md5_input)
+        self.id = md5_hash.hexdigest()
         
     def get_properties(self):
         elements = {

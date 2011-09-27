@@ -1,11 +1,8 @@
 import json
 from StringIO import StringIO
-from django.http import HttpResponse
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from resteasy.specifications.models import Specification
-from resteasy.specifications.models import Resource
-from resteasy.specifications.models import Element
+from resteasy.specifications.models import Specification, Resource, Element
 
 class InvalidRequest(Exception):
     def __init__(self, request, status, message):
@@ -13,7 +10,7 @@ class InvalidRequest(Exception):
         self.status = status
         self.message = message
     
-    def __str__(self):
+    def __unicode__(self):
         return self.message
     
     def get_response(self):
@@ -43,7 +40,10 @@ def _get_index_response(request):
     versions = _get_versions(spec_models)
     
     for spec in versions.keys():
-        spec_properties = dict(name=spec, versions=versions[spec])
+        spec_properties = {
+                           'name': spec,
+                           'versions': versions[spec]
+                          }
         response_properties.append(spec_properties)
             
     return response_properties
