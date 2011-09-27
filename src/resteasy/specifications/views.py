@@ -166,7 +166,7 @@ def elements(request, resource_id):
     try:
         status = '200'
         if resource_id:
-            response = _get_elements(request, resource_id)
+            response = _get_elements_response(request, resource_id)
         else:
             error_message = "Must specify a resource id"
             raise InvalidRequest(request, '400', error_message)
@@ -175,7 +175,7 @@ def elements(request, resource_id):
     finally:
         return _reply(status, response)
 
-def _get_elements(request, resource_id): 
+def _get_elements_response(request, resource_id): 
     resource = _get_resource(request, resource_id)          
     element_models = Element.objects.filter(resource=resource)
     element_model_properties = {}
