@@ -232,7 +232,7 @@ def _create_element(request):
 
 def _parse_and_save_element(request, element_data):
     try:
-        resource_id = element_data['resource_id']
+        resource_id = element_data['resourceId']
         resource = Resource.objects.get(id=resource_id)
         
         name = element_data['name']
@@ -241,8 +241,8 @@ def _parse_and_save_element(request, element_data):
         is_static = True
         
         parent = None
-        if element_data.has_key('parent_id'):
-            parent = _get_element(request, element_data['parent_id'])
+        if element_data.has_key('parentId'):
+            parent = _get_element(request, element_data['parentId'])
     except Resource.DoesNotExist:
         error_message = "Resource with ID '%s' does not exist" % resource_id
         raise InvalidRequest(request, '400', error_message)
@@ -251,10 +251,10 @@ def _parse_and_save_element(request, element_data):
         raise InvalidRequest(request, '400', error_message)
     else:
         if element_data.has_key('required'):
-            is_required = element_data['required']
+            is_required = _boolean(element_data['required'])
         
         if element_data.has_key('static'):
-            is_static = element_data['static']
+            is_static = _boolean(element_data['static'])
         
         element = Element(name=name,
                             type=type,
@@ -266,6 +266,9 @@ def _parse_and_save_element(request, element_data):
         _save_model(element)
         element_properties = element.get_properties()
         return simplejson.dumps(element_properties)
+
+def _boolean(str):
+    return str in ['True', 'true', '1']
 
 def _get_element(request, element_id):
     try:
