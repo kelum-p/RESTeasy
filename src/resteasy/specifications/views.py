@@ -1,8 +1,7 @@
+import json
 from StringIO import StringIO
 from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
-from django.http import HttpResponseNotFound
-from django.utils import simplejson
 from django.views.decorators.csrf import csrf_exempt
 from resteasy.specifications.models import Specification
 from resteasy.specifications.models import Resource
@@ -25,7 +24,7 @@ class InvalidRequest(Exception):
                                  'message' : self.message
                                  }
                      }
-        return self.status, simplejson.dumps(response)
+        return self.status, response
 
 # Views for Specifications
 def index(request):
@@ -47,7 +46,7 @@ def _get_index_response(request):
         spec_properties = dict(name=spec, versions=versions[spec])
         response_properties.append(spec_properties)
             
-    return simplejson.dumps(response_properties)
+    return response_properties
 
 def _get_versions(spec_models):
     versions = {}
@@ -96,7 +95,7 @@ def _parse_and_save_specification(request, specification_data):
                 
         spec = Specification(name=name, version=version)
         _save_model(spec)
-        return simplejson.dumps(spec.get_properties())
+        return spec.get_properties()
     except KeyError as key_error:
         error_message = "Missing required key: %s" % key_error
         raise InvalidRequest(request, '400', error_message)
@@ -122,7 +121,7 @@ def _get_resources_response(request, specification, version):
         resources = Resource.objects.filter(specification=spec)
         response_properties = [resource.get_properties() 
                                for resource in resources]
-        return simplejson.dumps(response_properties)          
+        return response_properties          
 
 @csrf_exempt   
 def resource(request, resource_id=None):
@@ -132,8 +131,7 @@ def resource(request, resource_id=None):
             response = _create_resource(request)
         elif request.method == 'GET':
             resource = _get_resource(request, resource_id)
-            resource_properties = resource.get_properties()
-            response = simplejson.dumps(resource_properties)
+            response = resource.get_properties()
         else:
             error_message = "Only POST and GET are supported"
             raise InvalidRequest(request, '400', error_message)
@@ -155,7 +153,7 @@ def _parse_and_save_resource(request, resource_data):
         spec = Specification.objects.get(name=specification, version=version)
         resource = Resource(url=url, specification=spec)
         _save_model(resource)
-        return simplejson.dumps(resource.get_properties())
+        return resource.get_properties()
     except Specification.DoesNotExist:
         error_message = ("Specified specification '%s (%s)' does not exist" 
                         % (specification, version))
@@ -185,7 +183,7 @@ def _get_elements(request, resource_id):
         id, elements = element_model.get_properties()
         element_model_properties[id] = elements
                 
-    return simplejson.dumps(element_model_properties)
+    return element_model_properties
         
 def _get_resource(request, resource_id):
     try:    
@@ -248,7 +246,7 @@ def _parse_and_save_element(request, element_data):
                            )
         _save_model(element)
         element_properties = element.get_properties()
-        return simplejson.dumps(element_properties)
+        return element_properties
 
 def _boolean(str):
     return str in ['True', 'true', '1']
@@ -267,7 +265,7 @@ def _save_model(model):
 def _get_post_data(request):
     data_stream = StringIO(request.raw_post_data)
     try:
-        data = simplejson.load(data_stream)
+        data = json.load(data_stream)
     except ValueError:
         error_message = "Invalid JSON post data to create a specification"
         raise InvalidRequest(request, '400', error_message)
@@ -280,10 +278,11 @@ def _get_post_data(request):
 
 def _reply(status, response):
     mime_type = 'application/json'
+    json_response = json.dumps(response)
     if status == '200':
-        reply = HttpResponse(response, mime_type)
+        reply = HttpResponse(json_response, mime_type)
     elif status == '400':
-        reply = HttpResponseBadRequest(response, mime_type)
+        reply = HttpResponseBadRequest(json_response, mime_type)
     else:
         raise Exception("Reply status '%s' not supported" % status)
         
