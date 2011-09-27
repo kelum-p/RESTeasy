@@ -46,14 +46,8 @@ def _get_index_response(request):
     for spec in versions.keys():
         spec_properties = dict(name=spec, versions=versions[spec])
         response_properties.append(spec_properties)
-    
-    if len(response_properties) == 0:
-        error_message = "No specifications defined in the system."
-        raise InvalidRequest(request, '404', error_message)
-    else:
-        response = simplejson.dumps(response_properties)
-        
-    return response
+            
+    return simplejson.dumps(response_properties)
 
 def _get_versions(spec_models):
     versions = {}
@@ -123,18 +117,12 @@ def _get_resources_response(request, specification, version):
     except Specification.DoesNotExist:
         error_message = ("Specification '" + specification + ":" + version 
                             + "' does not exist.")
-        raise InvalidRequest(request, '404', error_message)
+        raise InvalidRequest(request, '400', error_message)
     else:
         resources = Resource.objects.filter(specification=spec)
-            
-        if len(resources) > 0:
-            response_properties = [resource.get_properties() 
-                                   for resource in resources]
-            return simplejson.dumps(response_properties)
-        else:
-            error_message = ("No resources defined for the specification " 
-                             + specification + ":" + version)
-            raise InvalidRequest(request, '404', error_message)            
+        response_properties = [resource.get_properties() 
+                               for resource in resources]
+        return simplejson.dumps(response_properties)          
 
 @csrf_exempt   
 def resource(request, resource_id=None):
@@ -192,17 +180,12 @@ def elements(request, resource_id):
 def _get_elements(request, resource_id): 
     resource = _get_resource(request, resource_id)          
     element_models = Element.objects.filter(resource=resource)
-    if len(element_models) > 0:
-        element_model_properties = {}
-        for element_model in element_models:
-            id, elements = element_model.get_properties()
-            element_model_properties[id] = elements
+    element_model_properties = {}
+    for element_model in element_models:
+        id, elements = element_model.get_properties()
+        element_model_properties[id] = elements
                 
-        return simplejson.dumps(element_model_properties)
-    else:
-        error_message = ("Properties not found for resource with id %s" 
-                        % (resource_id))
-        raise InvalidRequest(request, '404', error_message)
+    return simplejson.dumps(element_model_properties)
         
 def _get_resource(request, resource_id):
     try:    
