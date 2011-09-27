@@ -85,11 +85,11 @@ def _parse_and_save_specification(request, specification_data):
         name = specification_data['name']
         version = specification_data['version']
         
-        if name == None or len(name) <= 0:
+        if not name:
             error_message = "name cannot be null or empty"
             raise InvalidRequest(request, '400', error_message)
         
-        if version == None or len(version) <= 0:
+        if not version:
             error_message = "version cannot be null or empty"
             raise InvalidRequest(request, '400', error_message)
                 
